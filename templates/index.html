@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart IoT Troubleshooting Chatbot</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+        </svg>
+        <span>IoT Support</span>
+      </div>
+      <button class="sidebar-toggle" id="sidebarClose" aria-label="Close sidebar">&#x2715;</button>
+    </div>
+
+    <button class="btn-new-chat" id="newChatBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      New Conversation
+    </button>
+
+    <div class="sidebar-section-title">Quick Start</div>
+    <ul class="suggestion-list" id="suggestionList">
+      <li class="suggestion-item skeleton"></li>
+      <li class="suggestion-item skeleton"></li>
+      <li class="suggestion-item skeleton"></li>
+    </ul>
+
+    <div class="sidebar-section-title" style="margin-top:auto">Device Categories</div>
+    <ul class="category-list">
+      <li>🏠 Smart Home</li>
+      <li>📡 Networking</li>
+      <li>🔒 Security</li>
+      <li>🌡️ Sensors</li>
+      <li>💡 Lighting</li>
+      <li>🔌 Smart Plugs</li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <span class="model-badge" id="modelBadge">Checking model…</span>
+    </div>
+  </aside>
+
+  <!-- ── Main ────────────────────────────────────────────────────────────── -->
+  <main class="main">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <button class="sidebar-toggle" id="sidebarOpen" aria-label="Open sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <div class="topbar-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+          <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-1.14Z"/>
+          <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.46 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-1.14Z"/>
+        </svg>
+        Smart IoT Troubleshooting Assistant
+      </div>
+      <div class="status-dot" id="statusDot" title="Model status"></div>
+    </header>
+
+    <!-- Chat window -->
+    <div class="chat-window" id="chatWindow">
+
+      <!-- Welcome screen -->
+      <div class="welcome-screen" id="welcomeScreen">
+        <div class="welcome-icon">
+          <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" width="64" height="64">
+            <circle cx="32" cy="32" r="14" stroke-width="2.5"/>
+            <path d="M32 4v8M32 52v8M4 32h8M52 32h8M11.51 11.51l5.66 5.66M46.83 46.83l5.66 5.66M11.51 52.49l5.66-5.66M46.83 17.17l5.66-5.66" stroke-width="2.5"/>
+            <circle cx="32" cy="32" r="5" fill="currentColor" stroke="none"/>
+          </svg>
+        </div>
+        <h2>IoT Device Troubleshooting</h2>
+        <p>Describe your device issue and I'll walk you through a fix — step by step.</p>
+        <div class="quick-chips" id="quickChips"></div>
+      </div>
+
+      <!-- Messages container -->
+      <div class="messages" id="messages"></div>
+    </div>
+
+    <!-- Input area -->
+    <div class="input-area">
+      <div class="input-row">
+        <textarea
+          id="userInput"
+          placeholder="Describe your IoT device issue…"
+          rows="1"
+          maxlength="2000"
+          aria-label="Your message"
+        ></textarea>
+        <button class="btn-send" id="sendBtn" aria-label="Send message">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+      <div class="input-meta">
+        <span id="charCount">0 / 2000</span>
+        <span>Powered by <strong>Groq · openai/gpt-oss-120b</strong></span>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // ── State ────────────────────────────────────────────────────────────────
+    const SESSION_ID = "session_" + Math.random().toString(36).slice(2, 10);
+    let isStreaming = false;
+
+    // ── DOM refs ─────────────────────────────────────────────────────────────
+    const chatWindow    = document.getElementById("chatWindow");
+    const messagesEl    = document.getElementById("messages");
+    const userInput     = document.getElementById("userInput");
+    const sendBtn       = document.getElementById("sendBtn");
+    const welcomeScreen = document.getElementById("welcomeScreen");
+    const quickChips    = document.getElementById("quickChips");
+    const suggestionList= document.getElementById("suggestionList");
+    const charCount     = document.getElementById("charCount");
+    const statusDot     = document.getElementById("statusDot");
+    const modelBadge    = document.getElementById("modelBadge");
+    const newChatBtn    = document.getElementById("newChatBtn");
+    const sidebar       = document.getElementById("sidebar");
+    const sidebarOpen   = document.getElementById("sidebarOpen");
+    const sidebarClose  = document.getElementById("sidebarClose");
+
+    // ── Sidebar toggle ───────────────────────────────────────────────────────
+    sidebarOpen.addEventListener("click", () => sidebar.classList.add("open"));
+    sidebarClose.addEventListener("click", () => sidebar.classList.remove("open"));
+
+    // ── Health check ─────────────────────────────────────────────────────────
+    async function checkHealth() {
+      try {
+        const res = await fetch("/api/health");
+        const data = await res.json();
+        if (data.model_ready) {
+          statusDot.classList.add("online");
+          modelBadge.textContent = "✓ " + data.model;
+          modelBadge.classList.add("ready");
+        } else {
+          modelBadge.textContent = "⚠ Check API key · " + data.model;
+          statusDot.classList.add("offline");
+        }
+      } catch {
+        modelBadge.textContent = "✗ Server offline";
+        statusDot.classList.add("offline");
+      }
+    }
+
+    // ── Load suggestions ─────────────────────────────────────────────────────
+    async function loadSuggestions() {
+      try {
+        const res  = await fetch("/api/suggestions");
+        const data = await res.json();
+        const items = data.suggestions || [];
+
+        // Sidebar list
+        suggestionList.innerHTML = items.slice(0, 6).map(s =>
+          `<li class="suggestion-item" data-msg="${escHtml(s)}">${escHtml(s)}</li>`
+        ).join("");
+
+        // Welcome chips (first 4)
+        quickChips.innerHTML = items.slice(0, 4).map(s =>
+          `<button class="chip" data-msg="${escHtml(s)}">${escHtml(s)}</button>`
+        ).join("");
+
+        // Click handlers
+        document.querySelectorAll(".suggestion-item, .chip").forEach(el => {
+          el.addEventListener("click", () => sendMessage(el.dataset.msg));
+        });
+      } catch { /* ignore */ }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function escHtml(str) {
+      return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    function formatMessage(text) {
+      // Bold **text**
+      text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+      // Inline code `code`
+      text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
+      // Numbered lists
+      text = text.replace(/^(\d+)\.\s/gm, "<br><span class='step-num'>$1.</span> ");
+      // Bullet lists
+      text = text.replace(/^[-•]\s/gm, "<br>• ");
+      // Newlines
+      text = text.replace(/\n/g, "<br>");
+      return text;
+    }
+
+    function scrollToBottom() {
+      chatWindow.scrollTo({ top: chatWindow.scrollHeight, behavior: "smooth" });
+    }
+
+    function hideWelcome() {
+      if (!welcomeScreen.classList.contains("hidden")) {
+        welcomeScreen.classList.add("hidden");
+      }
+    }
+
+    function addMessage(role, content, streaming = false) {
+      hideWelcome();
+      const div = document.createElement("div");
+      div.className = `message ${role}`;
+      div.innerHTML = `
+        <div class="avatar">${role === "user" ? "You" : "AI"}</div>
+        <div class="bubble">${streaming ? "" : formatMessage(content)}</div>
+        <div class="timestamp">${new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</div>
+      `;
+      messagesEl.appendChild(div);
+      scrollToBottom();
+      return div.querySelector(".bubble");
+    }
+
+    function showTyping() {
+      const div = document.createElement("div");
+      div.className = "message assistant typing-row";
+      div.id = "typingIndicator";
+      div.innerHTML = `
+        <div class="avatar">AI</div>
+        <div class="bubble typing">
+          <span></span><span></span><span></span>
+        </div>`;
+      messagesEl.appendChild(div);
+      scrollToBottom();
+    }
+
+    function removeTyping() {
+      const el = document.getElementById("typingIndicator");
+      if (el) el.remove();
+    }
+
+    function setLoading(loading) {
+      isStreaming = loading;
+      sendBtn.disabled = loading;
+      userInput.disabled = loading;
+      sendBtn.classList.toggle("loading", loading);
+    }
+
+    // ── Send message (streaming) ──────────────────────────────────────────────
+    async function sendMessage(text) {
+      const msg = (text || userInput.value).trim();
+      if (!msg || isStreaming) return;
+
+      userInput.value = "";
+      charCount.textContent = "0 / 2000";
+      autoResize();
+
+      addMessage("user", msg);
+      showTyping();
+      setLoading(true);
+      sidebar.classList.remove("open");
+
+      try {
+        const res = await fetch("/api/chat/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: msg, session_id: SESSION_ID }),
+        });
+
+        removeTyping();
+
+        if (!res.ok) {
+          const err = await res.json();
+          addMessage("assistant", "⚠️ Error: " + (err.error || "Unknown error"));
+          return;
+        }
+
+        const bubble = addMessage("assistant", "", true);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let fullText = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split("\n");
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const payload = JSON.parse(line.slice(6));
+              if (payload.token) {
+                fullText += payload.token;
+                bubble.innerHTML = formatMessage(fullText);
+                scrollToBottom();
+              }
+              if (payload.error) {
+                bubble.innerHTML = "⚠️ " + escHtml(payload.error);
+              }
+            } catch { /* skip malformed */ }
+          }
+        }
+
+      } catch (err) {
+        removeTyping();
+        addMessage("assistant", "⚠️ Network error: " + err.message);
+      } finally {
+        setLoading(false);
+        userInput.focus();
+      }
+    }
+
+    // ── New chat ──────────────────────────────────────────────────────────────
+    newChatBtn.addEventListener("click", async () => {
+      await fetch("/api/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: SESSION_ID }),
+      });
+      messagesEl.innerHTML = "";
+      welcomeScreen.classList.remove("hidden");
+      sidebar.classList.remove("open");
+    });
+
+    // ── Input auto-resize & char count ───────────────────────────────────────
+    function autoResize() {
+      userInput.style.height = "auto";
+      userInput.style.height = Math.min(userInput.scrollHeight, 160) + "px";
+    }
+
+    userInput.addEventListener("input", () => {
+      autoResize();
+      charCount.textContent = userInput.value.length + " / 2000";
+    });
+
+    userInput.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    sendBtn.addEventListener("click", () => sendMessage());
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+    checkHealth();
+    loadSuggestions();
+    userInput.focus();
+  </script>
+</body>
+</html>
