@@ -1,241 +1,168 @@
-import os
-import json
-from flask import Flask, request, jsonify, render_template, Response, stream_with_context
-from flask_cors import CORS
-from dotenv import load_dotenv
-from openai import OpenAI
+# 🤖 Smart IoT Device Troubleshooting Chatbot
 
-load_dotenv()
+An AI-powered multi-agent chatbot that provides real-time, personalized troubleshooting guidance for smart home and IoT devices. Built with Flask, Groq API, and the `openai/gpt-oss-120b` model.
 
-app = Flask(__name__)
-CORS(app)
+---
 
-# ── Model configuration ──────────────────────────────────────────────────────
-# Groq confirmed working models (as of 2025):
-#   openai/gpt-oss-120b    ← default (most capable)
-#   openai/gpt-oss-20b     ← lighter/faster
-#   qwen/qwen3.6-27b       ← Qwen3 27B
-#   groq/compound          ← Groq compound model
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-MODEL_NAME   = os.getenv("MODEL_NAME",   "openai/gpt-oss-120b")
+## 📌 Domain
 
-if not GROQ_API_KEY:
-    raise RuntimeError(
-        "\n\n  ❌  GROQ_API_KEY is not set!\n"
-        "  Create a .env file in this folder with:\n"
-        "      GROQ_API_KEY=your_key_here\n"
-        "  Get a free key at: https://console.groq.com/keys\n"
-    )
+**Smart Home / Internet of Things (IoT)** — AI-driven troubleshooting assistant for connected devices and smart home ecosystems.
 
-# OpenAI client pointed at Groq's base URL
-client = OpenAI(
-    api_key=GROQ_API_KEY,
-    base_url="https://api.groq.com/openai/v1",
-)
+---
 
-# ── System prompt ────────────────────────────────────────────────────────────
-SYSTEM_PROMPT = """You are an expert Smart IoT Device Troubleshooting Assistant.
-Your role is to help users diagnose and resolve issues with IoT devices including:
-- Smart home devices (lights, thermostats, door locks, cameras)
-- Network & connectivity problems (Wi-Fi, Zigbee, Z-Wave, Bluetooth, Matter)
-- Sensor malfunctions (temperature, humidity, motion, water leak)
-- Voice assistants integration (Alexa, Google Home, Apple HomeKit, Siri)
-- Firmware & software update issues
-- Power and battery problems
-- Cloud connectivity and app synchronization
-- Security vulnerabilities and best practices
+## 🧠 Overview
 
-Guidelines:
-1. Ask clarifying questions to pinpoint the exact issue.
-2. Provide step-by-step troubleshooting instructions that are easy to follow.
-3. Suggest both quick fixes and long-term solutions.
-4. Mention when a factory reset or professional help is needed.
-5. Be concise yet thorough. Use numbered steps for procedures.
-6. If the issue is outside IoT troubleshooting scope, politely redirect.
+The Smart IoT Device Troubleshooting Chatbot helps users diagnose and resolve issues with IoT devices through an intelligent conversational interface. It uses a Retrieval-Augmented Generation (RAG) approach combined with Agentic AI to deliver accurate, context-aware, step-by-step device fix plans.
 
-Always start by identifying: the device type, brand/model if known, the symptom, and how long the issue has been occurring."""
+### Key Agents
+| Agent | Role |
+|---|---|
+| **Device Knowledge Agent** | Retrieves device-specific troubleshooting info from manuals and protocol specs |
+| **Diagnosis & Resolution Agent** | Generates personalized step-by-step fix plans based on device type and symptoms |
+| **Preventive Maintenance Agent** | Provides proactive firmware, battery, and security recommendations |
+| **Fault Log & Feedback Agent** | Analyzes user-reported faults and delivers instant root-cause analysis |
 
-# ── In-memory conversation history per session ───────────────────────────────
-conversation_histories: dict[str, list[dict]] = {}
+---
 
+## ✨ Features
 
-def get_history(session_id: str) -> list[dict]:
-    if session_id not in conversation_histories:
-        conversation_histories[session_id] = []
-    return conversation_histories[session_id]
+- 🔴 **Real-time streaming responses** via Server-Sent Events (SSE)
+- 🧠 **Multi-turn conversation memory** — context retained per session
+- 🏠 **IoT-specialized AI** — covers Wi-Fi, Zigbee, Z-Wave, Bluetooth, Matter protocols
+- 💡 **10 quick-start prompts** for common device issues
+- 📱 **Responsive dark-theme UI** with collapsible sidebar
+- 🔒 **Secure API key handling** via environment variables
+- ♻️ **New Conversation** button to reset session history
 
+---
 
-def build_messages(history: list[dict]) -> list[dict]:
-    """Prepend the system prompt to the conversation history."""
-    return [{"role": "system", "content": SYSTEM_PROMPT}] + history
+## 🛠️ Technologies Used
 
+| Technology | Purpose |
+|---|---|
+| **Python / Flask** | Backend web framework |
+| **Groq API** | LLM inference endpoint (OpenAI-compatible) |
+| **openai/gpt-oss-120b** | Core language model for reasoning and diagnosis |
+| **HTML / CSS / JavaScript** | Frontend chat interface |
+| **IBM watsonx.ai** | Model deployment, embeddings, AI governance |
+| **IBM Granite Models** | Natural language understanding and personalization |
+| **IBM Bob Platform** | Multi-agent workflow orchestration |
+| **RAG Pipeline** | Real-time device data retrieval before generation |
+| **Vector Database (FAISS/Chroma)** | IoT knowledge base indexing and retrieval |
+| **python-dotenv** | Secure environment variable management |
 
+---
 
+## 📁 Project Structure
 
-# ── Routes ───────────────────────────────────────────────────────────────────
+```
+Smart-IoT-Troubleshooting-Assistant/
+│
+├── app.py                  # Flask backend — API routes + LLM integration
+├── requirements.txt        # Python dependencies
+├── .env.example            # Environment variable template (safe to share)
+├── .gitignore              # Excludes .env, __pycache__, venv
+│
+├── templates/
+│   └── index.html          # Chat UI — sidebar, welcome screen, streaming
+│
+└── static/
+    └── style.css           # Dark-theme responsive stylesheet
+```
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+---
 
+## ⚙️ Setup & Installation
 
-@app.route("/api/chat", methods=["POST"])
-def chat():
-    """Standard (non-streaming) chat endpoint."""
-    data = request.get_json(silent=True)
-    if not data or "message" not in data:
-        return jsonify({"error": "Missing 'message' field"}), 400
+### Prerequisites
+- Python 3.9+
+- A free Groq API key → [https://console.groq.com/keys](https://console.groq.com/keys)
 
-    user_message: str = data["message"].strip()
-    session_id: str   = data.get("session_id", "default")
+### 1. Clone the Repository
+```bash
+git clone https://github.com/anushhka-gupta/Smart-IoT-Troubleshooting-Assistant.git
+cd Smart-IoT-Troubleshooting-Assistant
+```
 
-    if not user_message:
-        return jsonify({"error": "Message cannot be empty"}), 400
+### 2. Create a Virtual Environment
+```bash
+python -m venv venv
 
-    history = get_history(session_id)
-    history.append({"role": "user", "content": user_message})
+# Windows
+venv\Scripts\activate
 
-    try:
-        completion = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=build_messages(history),
-            max_tokens=1024,
-            temperature=0.7,
-        )
-        assistant_message = completion.choices[0].message.content
-        history.append({"role": "assistant", "content": assistant_message})
+# macOS / Linux
+source venv/bin/activate
+```
 
-        return jsonify({"response": assistant_message, "session_id": session_id})
+### 3. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
 
-    except Exception as e:
-        error_msg = str(e)
-        if "401" in error_msg or "invalid_api_key" in error_msg.lower():
-            return jsonify({"error": "Invalid Groq API key. Check your .env file."}), 401
-        if "404" in error_msg or "model_not_found" in error_msg.lower() or "decommissioned" in error_msg.lower():
-            return jsonify({"error": f"Model '{MODEL_NAME}' not available on Groq. Try openai/gpt-oss-120b."}), 404
-        return jsonify({"error": f"Groq API error: {error_msg}"}), 503
+### 4. Configure Environment Variables
+```bash
+# Copy the template
+cp .env.example .env
 
+# Open .env and add your Groq API key
+GROQ_API_KEY=your_groq_api_key_here
+MODEL_NAME=openai/gpt-oss-120b
+```
 
-@app.route("/api/chat/stream", methods=["POST"])
-def chat_stream():
-    """Server-Sent Events streaming chat endpoint."""
-    data = request.get_json(silent=True)
-    if not data or "message" not in data:
-        return jsonify({"error": "Missing 'message' field"}), 400
+### 5. Run the App
+```bash
+python app.py
+```
 
-    user_message: str = data["message"].strip()
-    session_id: str   = data.get("session_id", "default")
+Open your browser at **http://localhost:5000**
 
-    if not user_message:
-        return jsonify({"error": "Message cannot be empty"}), 400
+---
 
-    history = get_history(session_id)
-    history.append({"role": "user", "content": user_message})
-    messages = build_messages(history)
+## 🔌 API Endpoints
 
-    def generate():
-        full_response: list[str] = []
-        try:
-            stream = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=messages,
-                max_tokens=1024,
-                temperature=0.7,
-                stream=True,
-            )
-            for chunk in stream:
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    full_response.append(delta)
-                    yield f"data: {json.dumps({'token': delta})}\n\n"
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/` | Serves the chat UI |
+| `POST` | `/api/chat` | Standard (non-streaming) chat |
+| `POST` | `/api/chat/stream` | SSE streaming chat |
+| `POST` | `/api/reset` | Clears session conversation history |
+| `GET` | `/api/health` | Health check — model and API status |
+| `GET` | `/api/suggestions` | Returns quick-start troubleshooting prompts |
 
-            complete = "".join(full_response)
-            history.append({"role": "assistant", "content": complete})
-            yield f"data: {json.dumps({'done': True})}\n\n"
+---
 
-        except Exception as e:
-            error_msg = str(e)
-            if "401" in error_msg or "invalid_api_key" in error_msg.lower():
-                yield f"data: {json.dumps({'error': 'Invalid Groq API key. Check your .env file.'})}\n\n"
-            elif "404" in error_msg or "model_not_found" in error_msg.lower() or "decommissioned" in error_msg.lower():
-                yield f"data: {json.dumps({'error': 'Model not available on Groq. Try openai/gpt-oss-120b.'})}\n\n"
-            else:
-                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+## 💬 Supported Device Categories
 
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
-    )
+- 🏠 Smart Home (lights, thermostats, door locks, cameras)
+- 📡 Networking (Wi-Fi, Zigbee, Z-Wave, Bluetooth, Matter)
+- 🌡️ Sensors (temperature, humidity, motion, water leak)
+- 🔒 Security (cameras, smart locks, vulnerability advice)
+- 💡 Lighting (smart bulbs, LED strips, scenes)
+- 🔌 Smart Plugs & Energy Monitors
+- 🗣️ Voice Assistants (Alexa, Google Home, Siri, HomeKit)
 
+---
 
-@app.route("/api/reset", methods=["POST"])
-def reset():
-    """Clear conversation history for a session."""
-    data = request.get_json(silent=True) or {}
-    session_id: str = data.get("session_id", "default")
-    conversation_histories.pop(session_id, None)
-    return jsonify({"message": "Conversation cleared", "session_id": session_id})
+## 🔒 Security Notes
 
+- **Never commit your `.env` file** — it is blocked by `.gitignore`
+- Use `.env.example` as a template — it contains no real secrets
+- Rotate your Groq API key immediately if accidentally exposed
+- The app reads `GROQ_API_KEY` only from the environment at runtime
 
-@app.route("/api/health", methods=["GET"])
-def health():
-    """Health check — confirms Groq client is reachable."""
-    try:
-        # Lightweight probe: list models (no tokens consumed)
-        models = client.models.list()
-        available = [m.id for m in models.data]
-        model_ready = MODEL_NAME in available
-        return jsonify({
-            "status": "ok",
-            "provider": "Groq API (OpenAI-compatible)",
-            "model": MODEL_NAME,
-            "model_ready": model_ready,
-            "token_set": True,
-        })
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "provider": "Groq API",
-            "model": MODEL_NAME,
-            "model_ready": False,
-            "detail": str(e),
-        }), 503
+---
 
+## 🚀 Future Scope
 
-@app.route("/api/suggestions", methods=["GET"])
-def suggestions():
-    """Return starter troubleshooting prompts."""
-    starters = [
-        "My smart light bulb won't connect to Wi-Fi",
-        "My Nest thermostat is showing offline in the app",
-        "Motion sensor keeps triggering false alerts",
-        "Smart door lock battery drains in 2 days",
-        "Google Home can't discover my new device",
-        "Smart plug not responding after power outage",
-        "Security camera video feed is lagging",
-        "Zigbee devices randomly disconnect from hub",
-        "Firmware update failed on my smart TV",
-        "HomeKit automation stopped working after iOS update",
-    ]
-    return jsonify({"suggestions": starters})
+1. **Smart Home Platform Integration** — Live device health data from Google Home, Alexa, HomeKit, and SmartThings for proactive diagnosis
+2. **AI Voice Assistant & Multilingual Support** — Voice-based fault reporting in multiple languages for broader accessibility
 
+---
 
-# ── Entry point ──────────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    print("=" * 50)
-    print("🤖  Smart IoT Troubleshooting Chatbot")
-    print("=" * 50)
-    print(f"   Provider : Groq API")
-    print(f"   Model    : {MODEL_NAME}")
-    print(f"   API Key  : SET ✓")
-    print(f"   URL      : http://localhost:5000")
-    print("=" * 50)
-    app.run(debug=True, host="0.0.0.0", port=5000)
+## 📄 License
 
+This project is intended for educational and demonstration purposes.
 
 ---
 
@@ -243,3 +170,4 @@ if __name__ == "__main__":
 
 **Anushka Gupta**
 [GitHub](https://github.com/anushhka-gupta) · Smart IoT Device Troubleshooting Assistant
+
