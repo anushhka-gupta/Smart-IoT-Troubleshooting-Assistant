@@ -11,10 +11,21 @@ app = Flask(__name__)
 CORS(app)
 
 # ── Model configuration ──────────────────────────────────────────────────────
-# Model : openai/gpt-oss-120b  served via Groq's OpenAI-compatible endpoint
-# Docs  : https://console.groq.com/docs/openai
+# Groq confirmed working models (as of 2025):
+#   openai/gpt-oss-120b    ← default (most capable)
+#   openai/gpt-oss-20b     ← lighter/faster
+#   qwen/qwen3.6-27b       ← Qwen3 27B
+#   groq/compound          ← Groq compound model
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 MODEL_NAME   = os.getenv("MODEL_NAME",   "openai/gpt-oss-120b")
+
+if not GROQ_API_KEY:
+    raise RuntimeError(
+        "\n\n  ❌  GROQ_API_KEY is not set!\n"
+        "  Create a .env file in this folder with:\n"
+        "      GROQ_API_KEY=your_key_here\n"
+        "  Get a free key at: https://console.groq.com/keys\n"
+    )
 
 # OpenAI client pointed at Groq's base URL
 client = OpenAI(
@@ -97,7 +108,12 @@ def chat():
         return jsonify({"response": assistant_message, "session_id": session_id})
 
     except Exception as e:
-        return jsonify({"error": f"Groq API error: {str(e)}"}), 503
+        error_msg = str(e)
+        if "401" in error_msg or "invalid_api_key" in error_msg.lower():
+            return jsonify({"error": "Invalid Groq API key. Check your .env file."}), 401
+        if "404" in error_msg or "model_not_found" in error_msg.lower() or "decommissioned" in error_msg.lower():
+            return jsonify({"error": f"Model '{MODEL_NAME}' not available on Groq. Try openai/gpt-oss-120b."}), 404
+        return jsonify({"error": f"Groq API error: {error_msg}"}), 503
 
 
 @app.route("/api/chat/stream", methods=["POST"])
@@ -138,7 +154,13 @@ def chat_stream():
             yield f"data: {json.dumps({'done': True})}\n\n"
 
         except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            error_msg = str(e)
+            if "401" in error_msg or "invalid_api_key" in error_msg.lower():
+                yield f"data: {json.dumps({'error': 'Invalid Groq API key. Check your .env file.'})}\n\n"
+            elif "404" in error_msg or "model_not_found" in error_msg.lower() or "decommissioned" in error_msg.lower():
+                yield f"data: {json.dumps({'error': 'Model not available on Groq. Try openai/gpt-oss-120b.'})}\n\n"
+            else:
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
 
     return Response(
         stream_with_context(generate()),
@@ -161,14 +183,27 @@ def reset():
 
 @app.route("/api/health", methods=["GET"])
 def health():
-    """Health check — confirms Groq client is configured."""
-    return jsonify({
-        "status": "ok",
-        "provider": "Groq API (OpenAI-compatible)",
-        "model": MODEL_NAME,
-        "model_ready": True,
-        "token_set": bool(GROQ_API_KEY),
-    })
+    """Health check — confirms Groq client is reachable."""
+    try:
+        # Lightweight probe: list models (no tokens consumed)
+        models = client.models.list()
+        available = [m.id for m in models.data]
+        model_ready = MODEL_NAME in available
+        return jsonify({
+            "status": "ok",
+            "provider": "Groq API (OpenAI-compatible)",
+            "model": MODEL_NAME,
+            "model_ready": model_ready,
+            "token_set": True,
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "provider": "Groq API",
+            "model": MODEL_NAME,
+            "model_ready": False,
+            "detail": str(e),
+        }), 503
 
 
 @app.route("/api/suggestions", methods=["GET"])
@@ -191,7 +226,16 @@ def suggestions():
 
 # ── Entry point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    print("🤖  IoT Troubleshooting Chatbot — Groq API")
+    print("=" * 50)
+    print("🤖  Smart IoT Troubleshooting Chatbot")
+    print("=" * 50)
+    print(f"   Provider : Groq API")
+    print(f"   Model    : {MODEL_NAME}")
+    print(f"   API Key  : SET ✓")
+    print(f"   URL      : http://localhost:5000")
+    print("=" * 50)
+    app.run(debug=True, host="0.0.0.0", port=5000)
+
     print(f"   Model  : {MODEL_NAME}")
     print(f"   API Key: {'SET ✓' if GROQ_API_KEY else 'NOT SET — add GROQ_API_KEY to .env'}")
     print("   URL    : http://localhost:5000")
